@@ -6,9 +6,7 @@ import * as Styled from './styles';
 
 interface ImageViewModalProps {
   isOpen: boolean;
-  onRequestClose: () => void;
-  isPresenter?: boolean;
-  submittedImageData?: {
+  submittedImageData: {
     imageUrl: string;
     submittedBy: {
       userId: string;
@@ -19,8 +17,10 @@ interface ImageViewModalProps {
     isCorrect?: boolean;
     feedback?: string;
   };
-  onValidateImage?: (isCorrect: boolean) => void;
-  onSendFeedback?: (feedback: string) => void;
+  onValidateImage: (isCorrect: boolean) => void;
+  onSendFeedback: (feedback: string) => void;
+  onRequestClose: () => void;
+  isPresenter: boolean;
 }
 
 export function ImageViewModal({

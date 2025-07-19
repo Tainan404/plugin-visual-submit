@@ -1,11 +1,6 @@
-import type { DataChannelEntryResponseType } from 'bigbluebutton-html-plugin-sdk';
 import JsPDF from 'jspdf';
-import type { SubmitImage } from '../components/visual-submit/types';
 
-interface UserGroup {
-  user: { userId: string; userName: string; };
-  images: DataChannelEntryResponseType<SubmitImage>[];
-}
+import { type UserGroup } from './sortUserGroups';
 
 // Utility to convert image URL to Base64
 const getImageAsBase64 = (url: string): Promise<string> => new Promise((resolve, reject) => {

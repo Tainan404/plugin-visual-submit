@@ -29,6 +29,7 @@ export function QrCodeModal({
       isOpen={isOpen}
       onRequestClose={onRequestClose}
       title="Mobile Photo Capture"
+      size="default"
     >
       {photoSessionUrl && (
         <>

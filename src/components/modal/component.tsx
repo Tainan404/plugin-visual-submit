@@ -5,15 +5,15 @@ interface ModalProps {
   isOpen: boolean;
   onRequestClose: () => void;
   children: React.ReactNode;
-  title?: string;
-  size?: 'default' | 'large';
+  title: string;
+  size: 'default' | 'large';
 }
 
 export function Modal({
   isOpen,
   onRequestClose,
   children,
-  title = '',
+  title,
   size = 'default',
 }: ModalProps): React.ReactElement {
   return (
