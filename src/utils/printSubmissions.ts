@@ -19,10 +19,6 @@ const getImageAsBase64 = (url: string): Promise<string> => new Promise((resolve,
 
 export const handlePrintSubmissions = async (groupedImages: UserGroup[]) => {
   const doc = new JsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 10;
-  const lineHeight = 8;
-  let currentY = margin;
 
   // Split users by those with and without images
   const usersWithImages = groupedImages.filter((group) => group.images.length > 0);
@@ -50,41 +46,54 @@ export const handlePrintSubmissions = async (groupedImages: UserGroup[]) => {
       return a.images.length - b.images.length;
     });
 
-  // eslint-disable-next-line no-plusplus
-  for (let i = 0; i < sortedGroupedImages.length; i++) {
-    const group = sortedGroupedImages[i];
-    const { userName } = group.user;
-    const imageCount = group.images.length;
+  // eslint-disable-next-line no-restricted-syntax
+  for (const group of sortedGroupedImages) {
+    const userName = group.user.userName;
 
-    if (i !== 0) doc.addPage();
-    currentY = margin;
-
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${userName} - ${imageCount} ${imageCount === 1 ? 'image' : 'images'}`, margin, currentY);
-    currentY += lineHeight;
-
-    // eslint-disable-next-line no-restricted-syntax
-    for (const file of group.images) {
+    // eslint-disable-next-line no-plusplus
+    for (let i = 0; i < group.images.length; i++) {
+      const file = group.images[i];
       const { imageUrl, isCorrect, feedback } = file.payloadJson;
+      const isFirstImage = i === 0 && sortedGroupedImages.indexOf(group) === 0;
+      if (!isFirstImage) {
+        doc.addPage();
+      }
+
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 10;
+      const lineHeight = 8;
+
+      // ✅ Set title: "User Name - Image N"
+      const imageNumber = i + 1;
+      const title = `${userName} - Image ${imageNumber}`;
+
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      const titleWidth = doc.getTextWidth(title);
+      const titleX = (pageWidth - titleWidth) / 2;
+      doc.text(title, titleX, margin + lineHeight);
+
+      let currentY = margin + lineHeight * 2;
 
       try {
-        // eslint-disable-next-line no-await-in-loop
         const imageData = await getImageAsBase64(imageUrl);
-
         const imgProps = doc.getImageProperties(imageData);
-        const pageHeight = doc.internal.pageSize.getHeight();
         const maxImageHeight = pageHeight * 0.8;
-        const imgWidthAvailable = pageWidth - 2 * margin;
+        const availableWidth = pageWidth - 2 * margin;
 
-        const widthScale = imgWidthAvailable / imgProps.width;
+        const widthScale = availableWidth / imgProps.width;
         const heightScale = maxImageHeight / imgProps.height;
         const scale = Math.min(widthScale, heightScale);
 
         const imgWidth = imgProps.width * scale;
         const imgHeight = imgProps.height * scale;
 
-        // Prepare feedback and correctness texts
+        const xCenter = (pageWidth - imgWidth) / 2;
+        doc.addImage(imageData, 'JPEG', xCenter, currentY, imgWidth, imgHeight);
+        currentY += imgHeight + 5;
+
+        // jsPDF doesn't support emojis https://github.com/parallax/jsPDF/issues/2072
         // eslint-disable-next-line no-nested-ternary
         const correctnessText = isCorrect === true
           ? 'Correct'
@@ -92,47 +101,25 @@ export const handlePrintSubmissions = async (groupedImages: UserGroup[]) => {
             ? 'Incorrect'
             : null;
 
-        const feedbackLines = feedback
-          ? doc.splitTextToSize(feedback, pageWidth - 2 * margin)
-          : [];
-
-        const feedbackHeight = feedbackLines.length * lineHeight;
-        const labelHeight = correctnessText ? lineHeight + 3 : 0;
-        const totalBlockHeight = imgHeight + labelHeight + feedbackHeight + 10;
-
-        // Ensure content fits on page
-        if (currentY + totalBlockHeight > pageHeight - margin) {
-          doc.addPage();
-          currentY = margin;
-        }
-
-        // Draw image centered
-        const xCenter = (pageWidth - imgWidth) / 2;
-        doc.addImage(imageData, 'JPEG', xCenter, currentY, imgWidth, imgHeight);
-        currentY += imgHeight + 5;
-
-        // Draw correctness label
         if (correctnessText) {
           doc.setFontSize(12);
           doc.setTextColor(isCorrect ? 0 : 200, isCorrect ? 128 : 0, 0);
           const textWidth = doc.getTextWidth(correctnessText);
           const textX = (pageWidth - textWidth) / 2;
           doc.text(correctnessText, textX, currentY);
-          currentY += labelHeight;
+          currentY += lineHeight + 3;
         }
 
-        // Draw feedback
+        // Feedback (centered)
         if (feedback) {
           doc.setFontSize(11);
           doc.setTextColor(0, 0, 0);
-          const feedbackX = pageWidth / 2;
-          doc.text(feedbackLines, feedbackX, currentY, {
+          const feedbackLines = doc.splitTextToSize(feedback, pageWidth - 2 * margin);
+          doc.text(feedbackLines, pageWidth / 2, currentY, {
             align: 'center',
             maxWidth: pageWidth - 2 * margin,
           });
-          currentY += feedbackHeight + 5;
-        } else {
-          currentY += 10;
+          currentY += feedbackLines.length * lineHeight + 5;
         }
 
         doc.setTextColor(0, 0, 0);
@@ -140,7 +127,6 @@ export const handlePrintSubmissions = async (groupedImages: UserGroup[]) => {
         doc.setFontSize(10);
         doc.setTextColor(200, 0, 0);
         doc.text(`Failed to load image: ${imageUrl}`, margin, currentY);
-        currentY += lineHeight;
         doc.setTextColor(0, 0, 0);
       }
     }
